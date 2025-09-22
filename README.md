@@ -83,6 +83,10 @@ server {
     server_name vietqr.cloudmini.net;
 
     location / {
+        # Chỉ cho phép các IP cụ thể
+        allow 127.0.0.1;
+        deny all;
+		
         proxy_pass http://127.0.0.1:5000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -107,6 +111,10 @@ server {
 }
 ```
 
+```bash
+sudo nginx -t
+sudo systemctl reload nginx
+```
 ---
 
 ## 🛠️ API Usage
@@ -174,9 +182,10 @@ https://vietqr.cloudmini.net/vietqr?bankcode=970436&account=123456789&amount=100
 ## 🔒 Bảo mật cơ bản
 
 - Dùng Nginx + Certbot để bắt buộc HTTPS.  
-- Thêm **rate limiting** trong Nginx hoặc Flask-Limiter để tránh spam.  
+- Rule Nginx chỉ cho phép 1 số IP có thể truy cập để tránh spam.  
 - Validate input (đã có trong code).  
 - Có thể bổ sung API key nếu cần.  
+- Firewal iptables để block all chỉ cho phép 1 số ip có thể truy cập.
 
 ---
 
