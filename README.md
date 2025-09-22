@@ -184,7 +184,6 @@ https://vietqr.cloudmini.net/vietqr?bankcode=970436&account=123456789&amount=100
 - Dùng Nginx + Certbot để bắt buộc HTTPS.  
 - Rule Nginx chỉ cho phép 1 số IP có thể truy cập để tránh spam.  
 - Validate input (đã có trong code).  
-- Có thể bổ sung API key nếu cần.  
 - Firewal iptables để block all chỉ cho phép 1 số ip có thể truy cập.
 
 ---
