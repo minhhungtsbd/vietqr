@@ -144,17 +144,17 @@ https://vietqr.cloudmini.net/vietqr?bankcode=970436&account=123456789&amount=100
 
 3. **QR dán template nền**  
 ```
-https://vietqr.cloudmini.net/vietqr?bankcode=970436&account=123456789&style=template
+https://vietqr.cloudmini.net/vietqr?bankcode=970436&account=123456789&amount=100000&noidung=ThanhToan&style=template
 ```
 
 4. **QR template + logo Cloudmini**  
 ```
-https://vietqr.cloudmini.net/vietqr?bankcode=970436&account=123456789&style=template&logo=cloudmini.png
+https://vietqr.cloudmini.net/vietqr?bankcode=970436&account=123456789&amount=100000&noidung=ThanhToan&style=template&logo=cloudmini.png
 ```
 
 5. **QR template + logo nhỏ hơn (10%)**  
 ```
-https://vietqr.cloudmini.net/vietqr?bankcode=970436&account=123456789&style=template&logo=cloudmini.png&logo_size=0.1
+https://vietqr.cloudmini.net/vietqr?bankcode=970436&account=123456789&amount=100000&noidung=ThanhToan&style=template&logo=cloudmini.png&logo_size=0.1
 ```
 
 ---
