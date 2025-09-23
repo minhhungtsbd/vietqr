@@ -5,6 +5,7 @@ from flask import Flask, request, Response
 import qrcode
 from io import BytesIO
 from PIL import Image
+import os
 
 app = Flask(__name__)
 
@@ -134,17 +135,24 @@ def vietqr():
     account  = request.args.get("account")
     amount   = request.args.get("amount")
     noidung  = request.args.get("noidung")
-    style    = request.args.get("style")   # "template" hoặc None
-    logo     = request.args.get("logo")    # tên file logo, ví dụ "cloudmini.png"
-    logo_ratio = float(request.args.get("logo_size", 0.15))  # tỉ lệ logo, mặc định 20%
+    template = request.args.get("template")  # ví dụ "vcb.png"
+    logo     = request.args.get("logo")      # ví dụ "cloudmini.png"
+    logo_ratio = float(request.args.get("logo_size", 0.15))
 
     if not bankcode or not account:
         return "Thiếu tham số bankcode hoặc account", 400
 
     payload = build_vietqr(bankcode, account, amount, noidung)
 
-    template_path = "VietQR.png" if style == "template" else None
-    logo_path = logo if logo else None
+    # Nếu có template thì lấy trong thư mục templates/
+    template_path = os.path.join("templates", template) if template else None
+    if template_path and not os.path.exists(template_path):
+        return f"Template {template} không tồn tại", 400
+
+    # Nếu có logo thì lấy trong thư mục templates/ (hoặc logo/)
+    logo_path = os.path.join("templates", logo) if logo else None
+    if logo_path and not os.path.exists(logo_path):
+        return f"Logo {logo} không tồn tại", 400
 
     img = generate_qr(payload,
                       template_path=template_path,

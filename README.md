@@ -27,13 +27,14 @@ Khuyến nghị dùng **Python 3.9+**.
 ```bash
 sudo apt update
 sudo apt install -y python3 python3-venv python3-pip
+cd /var/www/vietqr
 python3 -m venv venv
 source venv/bin/activate
 ```
 
 ### 3. Cài thư viện
 ```bash
-pip install flask qrcode[pil] pillow
+pip install -r requirements.txt
 ```
 
 ---
@@ -75,6 +76,9 @@ Khởi động service:
 sudo systemctl daemon-reload
 sudo systemctl enable vietqr
 sudo systemctl start vietqr
+sudo systemctl restart vietqr
+sudo systemctl stop vietqr
+sudo systemctl status vietqr
 ```
 
 Cấu hình Nginx (HTTPS với Certbot):
@@ -152,17 +156,17 @@ https://vietqr.cloudmini.net/vietqr?bankcode=970436&account=123456789&amount=100
 
 3. **QR dán template nền**  
 ```
-https://vietqr.cloudmini.net/vietqr?bankcode=970436&account=123456789&amount=100000&noidung=ThanhToan&style=template
+https://vietqr.cloudmini.net/vietqr?bankcode=970436&account=123456789&amount=100000&noidung=ThanhToan&template=vcb.png
 ```
 
 4. **QR template + logo Cloudmini**  
 ```
-https://vietqr.cloudmini.net/vietqr?bankcode=970436&account=123456789&amount=100000&noidung=ThanhToan&style=template&logo=cloudmini.png
+https://vietqr.cloudmini.net/vietqr?bankcode=970436&account=123456789&amount=100000&noidung=ThanhToan&template=vcb.png&logo=cloudmini.png
 ```
 
 5. **QR template + logo nhỏ hơn (10%)**  
 ```
-https://vietqr.cloudmini.net/vietqr?bankcode=970436&account=123456789&amount=100000&noidung=ThanhToan&style=template&logo=cloudmini.png&logo_size=0.1
+https://vietqr.cloudmini.net/vietqr?bankcode=970436&account=123456789&amount=100000&noidung=ThanhToan&template=vcb.png&logo=cloudmini.png&logo_size=0.15
 ```
 
 ---
@@ -171,10 +175,13 @@ https://vietqr.cloudmini.net/vietqr?bankcode=970436&account=123456789&amount=100
 
 ```
 /var/www/vietqr/
-├── vietqr.py        # Mã nguồn Flask
-├── venv/            # Virtualenv Python
-├── VietQR.png       # Template nền VietQR
-└── cloudmini.png    # Logo Cloudmini
+├── vietqr.py
+├── venv/
+├── templates/
+│   ├── vcb.png
+│   ├── tcb.png
+│   ├── acb.png
+│   └── cloudmini.png
 ```
 
 ---
