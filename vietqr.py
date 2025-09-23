@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from flask import Flask, request, Response
+from flask import Flask, request, Response, send_from_directory
 import qrcode
 from io import BytesIO
 from PIL import Image
@@ -165,6 +165,13 @@ def vietqr():
     buf.seek(0)
     return Response(buf.getvalue(), mimetype="image/png")
 
+@app.route('/favicon.ico')
+def favicon():
+    return send_from_directory(
+        os.path.join(app.root_path, 'templates'),
+        'favicon.svg',
+        mimetype='image/svg+xml'
+    )
 
 # =============================
 # Chạy server Flask

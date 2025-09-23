@@ -136,8 +136,8 @@ GET /vietqr
 | `account`   | ✅       | Số tài khoản / số thẻ nhận tiền |
 | `amount`    | ❌       | Số tiền giao dịch (VNĐ) |
 | `noidung`   | ❌       | Nội dung chuyển khoản |
-| `style`     | ❌       | `template` nếu muốn dán QR vào nền `VietQR.png` |
-| `logo`      | ❌       | Đường dẫn / file logo PNG để dán vào giữa |
+| `template`     | ❌       | `vcb.png` nếu muốn dán QR logo Vietcombank vào nền |
+| `logo`      | ❌       | `cloudmini.png` file logo PNG để dán vào giữa |
 | `logo_size` | ❌       | Tỉ lệ logo so với QR (mặc định `0.15` = 15%) |
 
 ---
