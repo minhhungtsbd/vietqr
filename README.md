@@ -17,7 +17,7 @@ git clone https://github.com/minhhungtsbd/vietqr.git
 cd vietqr
 ```
 
-Hoặc copy file `vietqr.py` + ảnh `VietQR.png` (template nền) + logo (ví dụ `cloudmini.png`) vào thư mục `/var/www/vietqr`.
+Hoặc copy file `vietqr.py` + thư mục `templates/` (chứa ảnh template và logo) vào `/var/www/vietqr`.
 
 ---
 
@@ -27,12 +27,16 @@ Khuyến nghị dùng **Python 3.9+**.
 ```bash
 sudo apt update
 sudo apt install -y python3 python3-venv python3-pip
-cd /var/www/vietqr
 python3 -m venv venv
 source venv/bin/activate
 ```
 
 ### 3. Cài thư viện
+```bash
+pip install flask qrcode[pil] pillow gunicorn
+```
+
+Hoặc dùng file `requirements.txt`:
 ```bash
 pip install -r requirements.txt
 ```
@@ -58,7 +62,7 @@ Tạo systemd service `/etc/systemd/system/vietqr.service`:
 
 ```ini
 [Unit]
-Description=Gunicorn instance to serve VietQR API
+Description=Gunicorn instance to serve vietqr Flask app
 After=network.target
 
 [Service]
@@ -76,10 +80,20 @@ Khởi động service:
 sudo systemctl daemon-reload
 sudo systemctl enable vietqr
 sudo systemctl start vietqr
-sudo systemctl restart vietqr
-sudo systemctl stop vietqr
 sudo systemctl status vietqr
 ```
+
+Xem log real-time:
+```bash
+journalctl -u vietqr -f
+```
+
+Restart service sau khi update code:
+```bash
+sudo systemctl restart vietqr
+```
+
+---
 
 Cấu hình Nginx (HTTPS với Certbot):
 ```nginx
@@ -87,10 +101,6 @@ server {
     server_name vietqr.cloudmini.net;
 
     location / {
-        # Chỉ cho phép các IP cụ thể
-        allow 127.0.0.1;
-        deny all;
-		
         proxy_pass http://127.0.0.1:5000;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
@@ -115,20 +125,27 @@ server {
 }
 ```
 
-```bash
-sudo nginx -t
-sudo systemctl reload nginx
-```
 ---
 
 ## 🛠️ API Usage
 
-### Endpoint
+### Endpoints
+
+#### 1. `/vietqr` - Endpoint đầy đủ tham số (linh hoạt)
 ```
 GET /vietqr
 ```
 
-### Query Parameters
+#### 2. `/cloudmini` - Endpoint rút gọn (hardcoded defaults)
+```
+GET /cloudmini?amount=100000&noidung=12392NTCM399033
+```
+- Tự động dùng: `bankcode=970436`, `account=9909141311`, `template=vcb.png`, `logo=cloudmini.png`
+- Chỉ cần truyền: `amount` và `noidung`
+
+---
+
+### Query Parameters (cho `/vietqr`)
 
 | Tham số     | Bắt buộc | Mô tả |
 |-------------|----------|-------|
@@ -136,8 +153,9 @@ GET /vietqr
 | `account`   | ✅       | Số tài khoản / số thẻ nhận tiền |
 | `amount`    | ❌       | Số tiền giao dịch (VNĐ) |
 | `noidung`   | ❌       | Nội dung chuyển khoản |
-| `template`     | ❌       | `vcb.png` nếu muốn dán QR logo Vietcombank vào nền |
-| `logo`      | ❌       | `cloudmini.png` file logo PNG để dán vào giữa |
+| `template`  | ❌       | Tên file template (ví dụ: `vcb.png`, `VietQR.png`) trong thư mục `templates/` |
+| `style`     | ❌       | `template` nếu muốn dùng `VietQR.png` mặc định |
+| `logo`      | ❌       | Tên file logo PNG (ví dụ: `cloudmini.png`) trong thư mục `templates/` |
 | `logo_size` | ❌       | Tỉ lệ logo so với QR (mặc định `0.15` = 15%) |
 
 ---
@@ -156,7 +174,7 @@ https://vietqr.cloudmini.net/vietqr?bankcode=970436&account=123456789&amount=100
 
 3. **QR dán template nền**  
 ```
-https://vietqr.cloudmini.net/vietqr?bankcode=970436&account=123456789&amount=100000&noidung=ThanhToan&template=vcb.png
+https://vietqr.cloudmini.net/vietqr?bankcode=970436&account=123456789&amount=100000&noidung=ThanhToan&style=template
 ```
 
 4. **QR template + logo Cloudmini**  
@@ -166,7 +184,12 @@ https://vietqr.cloudmini.net/vietqr?bankcode=970436&account=123456789&amount=100
 
 5. **QR template + logo nhỏ hơn (10%)**  
 ```
-https://vietqr.cloudmini.net/vietqr?bankcode=970436&account=123456789&amount=100000&noidung=ThanhToan&template=vcb.png&logo=cloudmini.png&logo_size=0.15
+https://vietqr.cloudmini.net/vietqr?bankcode=970436&account=123456789&amount=100000&noidung=ThanhToan&template=vcb.png&logo=cloudmini.png&logo_size=0.1
+```
+
+6. **Endpoint rút gọn CloudMini (chỉ cần amount + noidung)**  
+```
+https://vietqr.cloudmini.net/cloudmini?amount=100000&noidung=12392NTCM399033
 ```
 
 ---
@@ -175,13 +198,44 @@ https://vietqr.cloudmini.net/vietqr?bankcode=970436&account=123456789&amount=100
 
 ```
 /var/www/vietqr/
-├── vietqr.py
-├── venv/
-├── templates/
-│   ├── vcb.png
-│   ├── tcb.png
-│   ├── acb.png
-│   └── cloudmini.png
+├── vietqr.py           # Mã nguồn Flask
+├── requirements.txt    # Danh sách thư viện Python
+├── README.md           # Tài liệu hướng dẫn
+├── venv/               # Virtualenv Python
+└── templates/          # Thư mục chứa templates và logo
+    ├── VietQR.png      # Template nền VietQR mặc định
+    ├── vcb.png         # Template nền VCB
+    ├── cloudmini.png   # Logo Cloudmini
+    └── favicon.png     # Favicon
+```
+
+---
+
+## 🔍 Debug & Troubleshooting
+
+### Kiểm tra service status
+```bash
+sudo systemctl status vietqr
+```
+
+### Xem log realtime
+```bash
+journalctl -u vietqr -f
+```
+
+### Xem 100 dòng log gần nhất
+```bash
+journalctl -u vietqr -n 100
+```
+
+### Restart service sau khi update code
+```bash
+sudo systemctl restart vietqr
+```
+
+### Kiểm tra file templates có tồn tại không
+```bash
+ls -lah /var/www/vietqr/templates/
 ```
 
 ---
@@ -189,9 +243,9 @@ https://vietqr.cloudmini.net/vietqr?bankcode=970436&account=123456789&amount=100
 ## 🔒 Bảo mật cơ bản
 
 - Dùng Nginx + Certbot để bắt buộc HTTPS.  
-- Rule Nginx chỉ cho phép 1 số IP có thể truy cập để tránh spam.  
+- Thêm **rate limiting** trong Nginx hoặc Flask-Limiter để tránh spam.  
 - Validate input (đã có trong code).  
-- Firewal iptables để block all chỉ cho phép 1 số ip có thể truy cập.
+- Có thể bổ sung API key nếu cần.  
 
 ---
 

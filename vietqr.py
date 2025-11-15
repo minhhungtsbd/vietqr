@@ -1,13 +1,22 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 
-from flask import Flask, request, Response, send_from_directory
+from flask import Flask, request, Response
 import qrcode
 from io import BytesIO
 from PIL import Image
 import os
+import logging
 
 app = Flask(__name__)
+
+# Cấu hình logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Thư mục chứa templates và logo
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+TEMPLATE_DIR = os.path.join(BASE_DIR, "templates")
 
 # =============================
 # CRC16-CCITT (False) cho VietQR
@@ -52,10 +61,19 @@ def build_vietqr(bankcode, account, amount=None, noidung=None) -> str:
     currency = emv_field("53", "704")  # VND
     country  = emv_field("58", "VN")
 
-    # Amount nếu có
+    # Amount nếu có (chỉ chấp nhận số, nếu không hợp lệ thì bỏ qua)
     amt = ""
-    if amount:
-        amt = emv_field("54", str(int(amount)))
+    if amount is not None:
+        # chuẩn hoá chuỗi số: bỏ khoảng trắng, dấu phẩy
+        amount_str = str(amount).strip().replace(",", "")
+        if amount_str:
+            # cho phép kiểu "1000" hoặc "1000.0"; nếu vẫn không phải số thì bỏ qua
+            try:
+                amount_value = int(float(amount_str))
+            except ValueError:
+                amount_value = None
+            if amount_value is not None and amount_value > 0:
+                amt = emv_field("54", str(amount_value))
 
     # Nội dung nếu có
     desc = ""
@@ -97,8 +115,8 @@ def generate_qr(payload,
     qr.make(fit=True)
     qr_img = qr.make_image(fill_color="black", back_color="white").convert("RGBA")
 
-    # Resize QR nếu dùng template
-    if template_path:
+    # Resize QR nếu dùng template (chỉ khi file tồn tại)
+    if template_path and os.path.exists(template_path):
         qr_img = qr_img.resize((qr_size, qr_size), Image.Resampling.LANCZOS)
         template = Image.open(template_path).convert("RGBA")
         tw, th = template.size
@@ -109,11 +127,11 @@ def generate_qr(payload,
     else:
         base_img = qr_img
 
-    # Thêm logo
-    if logo_path:
+    # Thêm logo (chỉ khi file tồn tại)
+    if logo_path and os.path.exists(logo_path):
         logo = Image.open(logo_path).convert("RGBA")
-        # resize logo theo tỷ lệ QR
-        current_qr_size = qr_size if template_path else base_img.size[0]
+        # resize logo theo tỷ lệ QR (lấy kích thước thực tế của base_img)
+        current_qr_size = base_img.size[0]
         logo_size = int(current_qr_size * logo_ratio)
         logo = logo.resize((logo_size, logo_size), Image.Resampling.LANCZOS)
 
@@ -135,24 +153,37 @@ def vietqr():
     account  = request.args.get("account")
     amount   = request.args.get("amount")
     noidung  = request.args.get("noidung")
-    template = request.args.get("template")  # ví dụ "vcb.png"
-    logo     = request.args.get("logo")      # ví dụ "cloudmini.png"
-    logo_ratio = float(request.args.get("logo_size", 0.15))
+    template = request.args.get("template")  # tên file template, ví dụ "vcb.png", "VietQR.png"
+    style    = request.args.get("style")      # "template" (dùng VietQR.png mặc định) hoặc None
+    logo     = request.args.get("logo")       # tên file logo, ví dụ "cloudmini.png"
+    
+    # Parse logo_size an toàn
+    try:
+        logo_ratio = float(request.args.get("logo_size", 0.15))
+    except (ValueError, TypeError):
+        logo_ratio = 0.15  # mặc định 15%
 
     if not bankcode or not account:
         return "Thiếu tham số bankcode hoặc account", 400
 
+    # Log request
+    logger.info(f"Request: bankcode={bankcode}, account={account}, amount={amount}, noidung={noidung}")
+
     payload = build_vietqr(bankcode, account, amount, noidung)
 
-    # Nếu có template thì lấy trong thư mục templates/
-    template_path = os.path.join("templates", template) if template else None
-    if template_path and not os.path.exists(template_path):
-        return f"Template {template} không tồn tại", 400
-
-    # Nếu có logo thì lấy trong thư mục templates/ (hoặc logo/)
-    logo_path = os.path.join("templates", logo) if logo else None
-    if logo_path and not os.path.exists(logo_path):
-        return f"Logo {logo} không tồn tại", 400
+    # Ưu tiên dùng tham số template, nếu không có thì dùng style=template -> VietQR.png
+    if template:
+        template_path = os.path.join(TEMPLATE_DIR, template)
+    elif style == "template":
+        template_path = os.path.join(TEMPLATE_DIR, "VietQR.png")
+    else:
+        template_path = None
+    
+    # Logo path
+    if logo:
+        logo_path = os.path.join(TEMPLATE_DIR, logo)
+    else:
+        logo_path = None
 
     img = generate_qr(payload,
                       template_path=template_path,
@@ -165,13 +196,55 @@ def vietqr():
     buf.seek(0)
     return Response(buf.getvalue(), mimetype="image/png")
 
-@app.route('/favicon.ico')
-def favicon():
-    return send_from_directory(
-        os.path.join(app.root_path, 'templates'),
-        'favicon.svg',
-        mimetype='image/svg+xml'
-    )
+
+# =============================
+# Shortcut endpoint với tham số mặc định
+# =============================
+@app.route("/cloudmini")
+def qr_shortcut():
+    """
+    Endpoint rút gọn với các tham số mặc định:
+    - bankcode=970436
+    - account=9909141311
+    - template=vcb.png
+    - logo=cloudmini.png
+    
+    Chỉ cần truyền: amount và noidung
+    Ví dụ: /cloudmini?amount=100000&noidung=12392NTCM399033
+    """
+    # Tham số mặc định
+    DEFAULT_BANKCODE = "970436"
+    DEFAULT_ACCOUNT = "9909141311"
+    DEFAULT_TEMPLATE = "vcb.png"
+    DEFAULT_LOGO = "cloudmini.png"
+    DEFAULT_LOGO_SIZE = 0.15
+    
+    # Lấy tham số từ request (chỉ amount và noidung)
+    amount = request.args.get("amount")
+    noidung = request.args.get("noidung")
+    
+    # Log request
+    logger.info(f"Shortcut QR: amount={amount}, noidung={noidung}")
+    
+    # Build payload với tham số mặc định
+    payload = build_vietqr(DEFAULT_BANKCODE, DEFAULT_ACCOUNT, amount, noidung)
+    
+    # Đường dẫn template và logo
+    template_path = os.path.join(TEMPLATE_DIR, DEFAULT_TEMPLATE)
+    logo_path = os.path.join(TEMPLATE_DIR, DEFAULT_LOGO)
+    
+    # Generate QR
+    img = generate_qr(payload,
+                      template_path=template_path,
+                      logo_path=logo_path,
+                      qr_size=360,
+                      logo_ratio=DEFAULT_LOGO_SIZE)
+    
+    buf = BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return Response(buf.getvalue(), mimetype="image/png")
+
 
 # =============================
 # Chạy server Flask
